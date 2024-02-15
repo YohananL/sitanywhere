@@ -36,7 +36,7 @@ local HeightLevels = {
 function GetEntInFrontOfPlayer(Ped)
     color = { r = 0, g = 255, b = 0, a = 200 }
 
-    local forwardDistance = 0.6
+    local forwardDistance = 0.7
     local heightIndex = HeightLevels.Max
     while heightIndex >= HeightLevels.Min do
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, forwardDistance, heightIndex)
@@ -53,7 +53,13 @@ function GetEntInFrontOfPlayer(Ped)
         local _, hit, endCoords, surfaceNormal, materialHash, entityHit =
             GetShapeTestResultIncludingMaterial(RayHandle)
 
-        if hit == 1 then
+        -- Ignore water
+        if hit == 1 and materialHash ~= MaterialHash.Water then
+            -- Ignore bushes without collision
+            -- if materialHash ~= MaterialHash.Bushes or heightIndex >= -0.4 then
+            --     return heightIndex, hit, endCoords, surfaceNormal, materialHash, entityHit
+            -- end
+
             return heightIndex, hit, endCoords, surfaceNormal, materialHash, entityHit
         end
 
@@ -63,15 +69,15 @@ function GetEntInFrontOfPlayer(Ped)
     end
 
     -- while true do
-    --     local heightIndex = 2
+    --     local heightIndex = -0.7
     --     local CoA = GetEntityCoords(Ped, true)
-    --     local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, forwardDistance, HeightLevels.Max)
-    --     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoA.x, CoA.y, CoA.z,
+    --     local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, forwardDistance, heightIndex)
+    --     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + 0.1,
     --         CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
     --     local shapeTestHandle, hit, endCoords, surfaceNormal, materialHash, entityHit =
     --         GetShapeTestResultIncludingMaterial(RayHandle)
 
-    --     DrawLine(CoA.x, CoA.y, CoA.z, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
+    --     DrawLine(CoB.x, CoB.y, CoB.z + 0.1, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
     --         color.a)
     --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
     --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
@@ -115,17 +121,21 @@ end
 
 local isSitting = false
 
-RegisterCommand('sit', function()
+RegisterCommand('sit', function(_, args, _)
     local playerPed = PlayerPedId()
 
     -- Check if already sitting, then cancel the animation
     if isSitting then
+        -- Clear tasks
         ClearPedTasksImmediately(playerPed)
-        isSitting = false
 
+        -- Unfreeze if frozen
         if IsEntityPositionFrozen(playerPed) then
             FreezeEntityPosition(playerPed, false)
         end
+
+        -- Reset isSitting property
+        isSitting = false
 
         return
     end
@@ -139,8 +149,9 @@ RegisterCommand('sit', function()
     -- Get the current heading so the ped will turn around when sitting
     local heading = GetEntityHeading(playerPed)
 
-    -- No ground in front, hang
+    -- No ground in front
     if heightIndex == nil then
+        -- Just hang from ledge
         local playerCoords = GetEntityCoords(playerPed)
         local forwardCoords = playerCoords + GetEntityForwardVector(playerPed) * 0.02
         TaskStartScenarioAtPosition(playerPed, SitScenarios.PROP_HUMAN_SEAT_CHAIR,
@@ -148,56 +159,67 @@ RegisterCommand('sit', function()
 
         -- Freeze so ped doesn't fall
         FreezeEntityPosition(playerPed, true)
-    elseif heightIndex <= HeightLevels.Ground then -- At ground, sit on floor
+    elseif heightIndex <= HeightLevels.Ground then
+        -- At ground, sit on floor
         TaskPlayAnim(playerPed, SitAnimations.floor.dictionary, SitAnimations.floor.name,
             8.0, 8.0, -1, SitAnimations.floor.flag, 0.0, false, false, false)
-    elseif heightIndex == HeightLevels.Max then -- Too high, lean
+    elseif heightIndex == HeightLevels.Max then
+        -- Too high, lean
         SetEntityHeading(playerPed, heading + 180)
         TaskPlayAnim(playerPed, SitAnimations.lean.dictionary, SitAnimations.lean.name,
             8.0, 8.0, -1, SitAnimations.lean.flag, 0.0, false, false, false)
     else
-        print('')
-        print('heightIndex: ' .. tostring(heightIndex))
-        print('hit: ' .. tostring(hit))
-        print('endCoords: ' ..
-            tostring(endCoords.x) .. ', ' .. tostring(endCoords.y) .. ', ' .. tostring(endCoords.z))
-        print('surfaceNormal: ' .. tostring(surfaceNormal))
-        print('materialHash: ' .. tostring(materialHash))
-        print('entityHit: ' .. tostring(entityHit))
-        for key, value in pairs(MaterialHash) do
-            if materialHash == value then
-                print('MaterialType: ' .. tostring(key))
-            end
-        end
-        local entityType = 0
-        local entityModel = 0
-        entityType = GetEntityType(entityHit)
-        print('entityType: ' .. tostring(entityType))
-        if hit == 1 and entityType ~= 0 then
-            entityModel = GetEntityModel(entityHit)
-            print('entityModel: ' .. tostring(entityModel))
-        else
-            print('No entity model')
-        end
-        print('')
+        -- print('')
+        -- print('heightIndex: ' .. tostring(heightIndex))
+        -- print('hit: ' .. tostring(hit))
+        -- print('endCoords: ' ..
+        --     tostring(endCoords.x) .. ', ' .. tostring(endCoords.y) .. ', ' .. tostring(endCoords.z))
+        -- print('surfaceNormal: ' .. tostring(surfaceNormal))
+        -- print('materialHash: ' .. tostring(materialHash))
+        -- print('entityHit: ' .. tostring(entityHit))
+        -- for key, value in pairs(MaterialHash) do
+        --     if materialHash == value then
+        --         print('MaterialType: ' .. tostring(key))
+        --     end
+        -- end
+        -- local entityType = 0
+        -- local entityModel = 0
+        -- entityType = GetEntityType(entityHit)
+        -- print('entityType: ' .. tostring(entityType))
+        -- if hit == 1 and entityType ~= 0 then
+        --     entityModel = GetEntityModel(entityHit)
+        --     print('entityModel: ' .. tostring(entityModel))
+        -- else
+        --     print('No entity model')
+        -- end
+        -- print('')
 
-        local coords = endCoords + GetEntityForwardVector(entityHit) * 0.18
+        -- Sit normally, check if chair is specified
+        if GetEntityType(entityHit) ~= 0 and args[1] == 'chair' then
+            -- Get the heading of the chair entity and make ped face opposite direction
+            heading = GetEntityHeading(entityHit) + 180
+        else
+            -- Make ped sit in the opposite direction
+            heading = heading + 180
+        end
+
         TaskStartScenarioAtPosition(playerPed, SitScenarios.PROP_HUMAN_SEAT_BENCH,
-            coords.x, coords.y, coords.z + 0.03, heading + 180, 0, false, true)
+            endCoords.x, endCoords.y, endCoords.z + 0.03, heading, 0, false, true)
     end
 
     -- Set setting to true
     isSitting = true
 end, false)
 
-
-
+--- ============================
+---          Grab Ledge
+--- ============================
 
 local grabLedgeEnabled = false
-local grabLedgeOnCooldown = false
 RegisterCommand('grabledge', function()
     grabLedgeEnabled = not grabLedgeEnabled
 
+    local grabLedgeOnCooldown = false
     CreateThread(function()
         while grabLedgeEnabled do
             playerPed = PlayerPedId()
