@@ -102,10 +102,16 @@ function GetDistanceFromEdge(Ped)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + zOffSet,
             CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
 
-        local _, hit, _, _, materialHash, _ = GetShapeTestResultIncludingMaterial(RayHandle)
+        local _, hit, floorCoords, _, materialHash, _ = GetShapeTestResultIncludingMaterial(RayHandle)
 
-        if hit == 1 or materialHash == MaterialHash.Water then
-            return floorDistance
+        -- Ignore water
+        if hit == 1 and materialHash ~= MaterialHash.Water then
+            return floorDistance, floorCoords
+        end
+
+        -- Reached limit
+        if floorDistance < 0 then
+            return 0.0, vec3(0, 0, 0)
         end
 
         floorDistance = floorDistance - 0.1
@@ -186,7 +192,7 @@ RegisterCommand('sit', function()
     -- No ground in front
     if heightIndex == nil then
         -- Get the distance of the ped from the edge of the floor
-        local floorDistance = GetDistanceFromEdge(playerPed) or 0.0
+        local floorDistance, floorCoords = GetDistanceFromEdge(playerPed)
         print(string.format('floorDistance: %2f', floorDistance))
 
         local forwardMultiplier
@@ -216,7 +222,8 @@ RegisterCommand('sit', function()
 
         -- Sit from ledge
         TaskPlayAnimAdvanced(playerPed, SitAnimations.hang.dictionary, SitAnimations.hang.name,
-            forwardCoords.x, forwardCoords.y, forwardCoords.z - 0.65,
+            -- forwardCoords.x, forwardCoords.y, forwardCoords.z - 0.65,
+            forwardCoords.x, forwardCoords.y, floorCoords.z + 0.36,
             0.0, 0.0, GetEntityHeading(playerPed),
             8.0, 8.0, -1, SitAnimations.hang.flag, 0.0, false, false, false)
 
@@ -345,12 +352,8 @@ RegisterCommand('smoke', function()
 
     -- Attach the cigarette to the player's right index finger
     AttachEntityToEntity(cigObj, playerPed, GetEntityBoneIndexByName(playerPed, 'BONETAG_R_FINGER11'),
-        0.0, 0.02, -0.01, 0.0, 0.0, 70.0,
+        0.01, 0.01, -0.01, -30.0, -15.0, 75.0,
         true, true, false, false, 2, true)
-
-    -- Do the smoke animation
-    TaskPlayAnim(playerPed, SmokeAnimations.smoke.dictionary, SmokeAnimations.smoke.name,
-        8.0, 8.0, -1, SmokeAnimations.smoke.flag, 0.0, false, false, false)
 
     -- Load the asset
     RequestNamedPtfxAsset(cigParticleAsset)
@@ -358,18 +361,37 @@ RegisterCommand('smoke', function()
         Wait(0)
     until HasNamedPtfxAssetLoaded(cigParticleAsset)
 
-    -- Use the asset
+    -- Specify the asset before starting the particle
     UseParticleFxAsset(cigParticleAsset)
 
     -- Start the particle looped animation on the cigarette
     cigParticleHandle = StartNetworkedParticleFxLoopedOnEntity(cigParticleName, cigObj,
-        -0.06, 0.0, 0.0, 0.0, 0.0, 70.0, 1.5,
+        -0.07, 0.0, 0.0, 0.0, 0.0, 0.0, 1.5,
         true, true, true)
 
-    -- -- Start the particle looped animation on the ped's mouth
-    -- StartNetworkedParticleFxNonLoopedOnEntityBone(cigParticleName2, playerPed,
-    --     0.05, 0.0, 0.0, 0.0, 0.0, 0.0, GetPedBoneIndex(playerPed, 0xB987), 2.0,
-    --     true, true, true)
+    -- Do the smoke animation
+    TaskPlayAnim(playerPed, SmokeAnimations.smoke.dictionary, SmokeAnimations.smoke.name,
+        8.0, 8.0, -1, SmokeAnimations.smoke.flag, 0.0, false, false, false)
+
+    -- Thread for smoke coming out of ped's mouth
+    CreateThread(function()
+        local smokeAnimTime = GetAnimDuration(SmokeAnimations.smoke.dictionary, SmokeAnimations.smoke.name)
+        while isSmoking do
+            -- Wait until ped blows smoke
+            Wait(smokeAnimTime * 825)
+
+            -- Specify the asset before starting the particle
+            UseParticleFxAsset(cigParticleAsset)
+
+            -- Start the particle looped animation on the ped's mouth
+            StartNetworkedParticleFxNonLoopedOnEntityBone(cigParticleName2, playerPed,
+                0.1, 0.0, 0.0, 0.0, 0.0, 0.0, GetPedBoneIndex(playerPed, 0xB987), 2.0,
+                true, true, true)
+
+            -- Wait until animation reset
+            Wait(smokeAnimTime * 175)
+        end
+    end)
 
     -- Set isSmoking to true
     isSmoking = true
