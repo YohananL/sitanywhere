@@ -114,7 +114,7 @@ function GetDistanceFromEdge(Ped)
             return 0.0, vec3(0, 0, 0)
         end
 
-        floorDistance = floorDistance - 0.1
+        floorDistance = floorDistance - 0.05
 
         Wait(1)
     end
@@ -195,23 +195,11 @@ RegisterCommand('sit', function()
         local floorDistance, floorCoords = GetDistanceFromEdge(playerPed)
         print(string.format('floorDistance: %2f', floorDistance))
 
-        local forwardMultiplier
-        if floorDistance >= -0.01 and floorDistance <= 0.01 then
-            forwardMultiplier = -0.17
-        elseif floorDistance >= 0.09 and floorDistance <= 0.11 then
-            forwardMultiplier = -0.07
-        elseif floorDistance >= 0.19 and floorDistance <= 0.21 then
-            forwardMultiplier = 0.00
-        elseif floorDistance >= 0.29 and floorDistance <= 0.31 then
-            forwardMultiplier = 0.10
-        elseif floorDistance >= 0.39 and floorDistance <= 0.41 then
-            forwardMultiplier = 0.18
-        elseif floorDistance >= 0.49 and floorDistance <= 0.51 then
-            forwardMultiplier = 0.29
-        elseif floorDistance >= 0.59 and floorDistance <= 0.61 then
-            forwardMultiplier = 0.41
-        elseif floorDistance >= 0.69 and floorDistance <= 0.71 then
-            forwardMultiplier = 0.45
+        local forwardMultiplier = 0.005
+        if floorDistance > 0.21 then
+            forwardMultiplier = 1.0 * floorDistance - 0.2
+        elseif floorDistance < 0.19 then
+            forwardMultiplier = 1.1 * floorDistance - 0.2
         end
 
         print('forwardMultiplier: ' .. tostring(forwardMultiplier))
