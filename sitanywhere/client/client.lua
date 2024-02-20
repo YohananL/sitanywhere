@@ -108,16 +108,12 @@ function GetDistanceFromEdge(Ped)
         if hit == 1 and materialHash ~= MaterialHash.Water then
             return floorDistance, floorCoords
         end
-
-        -- Reached limit
-        if floorDistance < 0 then
-            return 0.0, vec3(0, 0, 0)
-        end
-
         floorDistance = floorDistance - 0.05
 
         Wait(1)
     end
+
+    return 0.0, vec3(0, 0, 0)
 end
 
 function requestAnimation(dictionary)
@@ -207,11 +203,17 @@ RegisterCommand('sit', function()
         -- Move the ped forward based on the distance from the edge
         local playerCoords = GetEntityCoords(playerPed)
         local forwardCoords = playerCoords + GetEntityForwardVector(playerPed) * forwardMultiplier
+        local z
+
+        if floorDistance >= -0.01 and floorDistance <= 0.01 then
+            z = forwardCoords.z - 0.65
+        else
+            z = floorCoords.z + 0.36
+        end
 
         -- Sit from ledge
         TaskPlayAnimAdvanced(playerPed, SitAnimations.hang.dictionary, SitAnimations.hang.name,
-            -- forwardCoords.x, forwardCoords.y, forwardCoords.z - 0.65,
-            forwardCoords.x, forwardCoords.y, floorCoords.z + 0.36,
+            forwardCoords.x, forwardCoords.y, z,
             0.0, 0.0, GetEntityHeading(playerPed),
             8.0, 8.0, -1, SitAnimations.hang.flag, 0.0, false, false, false)
 
