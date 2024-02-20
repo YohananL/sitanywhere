@@ -97,23 +97,30 @@ function GetDistanceFromEdge(Ped)
 
     local floorDistance = ForwardDistance
     local zOffSet = 1.0
+    local floorCoords = nil
     while floorDistance >= 0.0 do
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, floorDistance, HeightLevels.Min)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + zOffSet,
             CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
 
-        local _, hit, floorCoords, _, materialHash, _ = GetShapeTestResultIncludingMaterial(RayHandle)
+        local _, hit, endCoords, _, materialHash, _ = GetShapeTestResultIncludingMaterial(RayHandle)
+
+        print(tostring(floorDistance) .. ': ' .. tostring(endCoords))
 
         -- Ignore water
-        if hit == 1 and materialHash ~= MaterialHash.Water then
-            return floorDistance, floorCoords
+        if hit == 1 then
+            floorCoords = endCoords
+
+            if materialHash ~= MaterialHash.Water then
+                return floorDistance, floorCoords
+            end
         end
         floorDistance = floorDistance - 0.05
 
         Wait(1)
     end
 
-    return 0.0, vec3(0, 0, 0)
+    return 0.0, floorCoords
 end
 
 function requestAnimation(dictionary)
@@ -205,20 +212,27 @@ RegisterCommand('sit', function()
         local forwardCoords = playerCoords + GetEntityForwardVector(playerPed) * forwardMultiplier
         local z
 
-        if floorDistance >= -0.01 and floorDistance <= 0.01 then
-            z = forwardCoords.z - 0.65
+        if floorCoords ~= nil and floorDistance >= -0.01 and floorDistance <= 0.01 then
+            -- No floor coords and floor distance at 0 means likely on water, just sit on floor
+            TaskPlayAnim(playerPed, SitAnimations.floor.dictionary, SitAnimations.floor.name,
+                8.0, 8.0, -1, SitAnimations.floor.flag, 0.0, false, false, false)
         else
-            z = floorCoords.z + 0.36
+            if floorCoords == nil then
+                print('floorCoords nil')
+                z = forwardCoords.z - 0.63
+            else
+                z = floorCoords.z + 0.36
+            end
+
+            -- Sit from ledge
+            TaskPlayAnimAdvanced(playerPed, SitAnimations.hang.dictionary, SitAnimations.hang.name,
+                forwardCoords.x, forwardCoords.y, z,
+                0.0, 0.0, GetEntityHeading(playerPed),
+                8.0, 8.0, -1, SitAnimations.hang.flag, 0.0, false, false, false)
+
+            -- Freeze so ped doesn't fall
+            FreezeEntityPosition(playerPed, true)
         end
-
-        -- Sit from ledge
-        TaskPlayAnimAdvanced(playerPed, SitAnimations.hang.dictionary, SitAnimations.hang.name,
-            forwardCoords.x, forwardCoords.y, z,
-            0.0, 0.0, GetEntityHeading(playerPed),
-            8.0, 8.0, -1, SitAnimations.hang.flag, 0.0, false, false, false)
-
-        -- Freeze so ped doesn't fall
-        FreezeEntityPosition(playerPed, true)
     elseif heightIndex <= HeightLevels.Ground then
         -- At ground, sit on floor
         TaskPlayAnim(playerPed, SitAnimations.floor.dictionary, SitAnimations.floor.name,
