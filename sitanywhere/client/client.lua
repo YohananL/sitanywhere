@@ -18,9 +18,11 @@ local SitAnimations = {
 local SitScenarios = {
     PROP_HUMAN_SEAT_BENCH = 'PROP_HUMAN_SEAT_BENCH',
     PROP_HUMAN_SEAT_CHAIR = 'PROP_HUMAN_SEAT_CHAIR',
-    PROP_HUMAN_SEAT_CHAIR_DRINK_BEER = 'PROP_HUMAN_SEAT_CHAIR_DRINK_BEER',
-    PROP_HUMAN_SEAT_CHAIR_FOOD = 'PROP_HUMAN_SEAT_CHAIR_FOOD',
     PROP_HUMAN_SEAT_CHAIR_MP_PLAYER = 'PROP_HUMAN_SEAT_CHAIR_MP_PLAYER',
+    WORLD_HUMAN_SEAT_LEDGE = 'WORLD_HUMAN_SEAT_LEDGE',
+    WORLD_HUMAN_SEAT_STEPS = 'WORLD_HUMAN_SEAT_STEPS',
+    WORLD_HUMAN_LEANING = 'WORLD_HUMAN_LEANING',
+    WORLD_HUMAN_PICNIC = 'WORLD_HUMAN_PICNIC',
 }
 
 local HeightLevels = {
@@ -105,8 +107,6 @@ function GetDistanceFromEdge(Ped)
 
         local _, hit, endCoords, _, materialHash, _ = GetShapeTestResultIncludingMaterial(RayHandle)
 
-        print(tostring(floorDistance) .. ': ' .. tostring(endCoords))
-
         -- Ignore water
         if hit == 1 then
             floorCoords = endCoords
@@ -115,7 +115,7 @@ function GetDistanceFromEdge(Ped)
                 return floorDistance, floorCoords
             end
         end
-        floorDistance = floorDistance - 0.05
+        floorDistance = floorDistance - 0.02
 
         Wait(1)
     end
@@ -187,8 +187,6 @@ RegisterCommand('sit', function()
     -- Get if there's object in front of the ped
     local heightIndex, hit, endCoords, surfaceNormal, materialHash, entityHit = GetEntInFrontOfPlayer(playerPed)
 
-    print('heightIndex: ' .. tostring(heightIndex))
-
     -- Get the current heading so the ped will turn around when sitting
     local heading = GetEntityHeading(playerPed)
 
@@ -198,13 +196,7 @@ RegisterCommand('sit', function()
         local floorDistance, floorCoords = GetDistanceFromEdge(playerPed)
         print(string.format('floorDistance: %2f', floorDistance))
 
-        local forwardMultiplier = 0.005
-        if floorDistance > 0.21 then
-            forwardMultiplier = 1.0 * floorDistance - 0.2
-        elseif floorDistance < 0.19 then
-            forwardMultiplier = 1.1 * floorDistance - 0.2
-        end
-
+        local forwardMultiplier = -0.25 + floorDistance * 1
         print('forwardMultiplier: ' .. tostring(forwardMultiplier))
 
         -- Move the ped forward based on the distance from the edge
@@ -218,35 +210,28 @@ RegisterCommand('sit', function()
                 8.0, 8.0, -1, SitAnimations.floor.flag, 0.0, false, false, false)
         else
             if floorCoords == nil then
-                print('floorCoords nil')
-                z = forwardCoords.z - 0.63
+                z = forwardCoords.z - 1.0312
             else
-                z = floorCoords.z + 0.36
+                z = floorCoords.z - 0.0312
             end
 
             -- Sit from ledge
-            TaskPlayAnimAdvanced(playerPed, SitAnimations.hang.dictionary, SitAnimations.hang.name,
-                forwardCoords.x, forwardCoords.y, z,
-                0.0, 0.0, GetEntityHeading(playerPed),
-                8.0, 8.0, -1, SitAnimations.hang.flag, 0.0, false, false, false)
+            TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_LEDGE,
+                forwardCoords.x, forwardCoords.y, z, heading, 0, false, true)
 
             -- Freeze so ped doesn't fall
             FreezeEntityPosition(playerPed, true)
         end
     elseif heightIndex <= HeightLevels.Ground then
         -- At ground, sit on floor
-        TaskPlayAnim(playerPed, SitAnimations.floor.dictionary, SitAnimations.floor.name,
-            8.0, 8.0, -1, SitAnimations.floor.flag, 0.0, false, false, false)
+        TaskStartScenarioInPlace(playerPed, SitScenarios.WORLD_HUMAN_PICNIC, 0, false)
     elseif heightIndex == HeightLevels.Max then
         -- Too high, lean
         SetEntityHeading(playerPed, heading + 180)
-        TaskPlayAnim(playerPed, SitAnimations.lean.dictionary, SitAnimations.lean.name,
-            8.0, 8.0, -1, SitAnimations.lean.flag, 0.0, false, false, false)
+        TaskStartScenarioInPlace(playerPed, SitScenarios.WORLD_HUMAN_LEANING, 0, false)
     else
         -- Make ped sit in the opposite direction
         heading = heading + 180
-
-        -- Sit down
         TaskStartScenarioAtPosition(playerPed, SitScenarios.PROP_HUMAN_SEAT_BENCH,
             endCoords.x, endCoords.y, endCoords.z + 0.03, heading, 0, false, true)
     end
