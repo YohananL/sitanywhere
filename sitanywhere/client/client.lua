@@ -28,6 +28,7 @@ local SitScenarios = {
 local HeightLevels = {
     Min = -1.5,
     Ground = -0.85,
+    Steps = -0.65,
     Max = 0.4,
 }
 
@@ -222,6 +223,12 @@ RegisterCommand('sit', function()
             -- Freeze so ped doesn't fall
             FreezeEntityPosition(playerPed, true)
         end
+    elseif heightIndex <= HeightLevels.Steps and heightIndex > HeightLevels.Ground then
+        -- Make ped sit in the opposite direction
+        heading = heading + 180
+        local forwardCoords = endCoords - GetEntityForwardVector(playerPed) * 0.4
+        TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_STEPS,
+            forwardCoords.x, forwardCoords.y, forwardCoords.z + 0.005, heading, 0, false, true)
     elseif heightIndex <= HeightLevels.Ground then
         -- At ground, sit on floor
         TaskStartScenarioInPlace(playerPed, SitScenarios.WORLD_HUMAN_PICNIC, 0, false)
