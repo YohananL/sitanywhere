@@ -2,19 +2,6 @@
 ---          Constants
 --- ============================
 
-local AnimationFlags =
-{
-    ANIM_FLAG_REPEAT = 1,
-};
-
-local SitAnimations = {
-    hang = { name = 'base', dictionary = 'amb@world_human_seat_wall@male@hands_by_sides@base', flag = AnimationFlags.ANIM_FLAG_REPEAT },
-    floor = { name = 'owner_idle', dictionary = 'anim@heists@fleeca_bank@ig_7_jetski_owner', flag = AnimationFlags.ANIM_FLAG_REPEAT },
-    chair = { name = 'hanging_out_operator', dictionary = 'anim@amb@business@cfm@cfm_machine_no_work@', flag = AnimationFlags.ANIM_FLAG_REPEAT },
-    platform = { name = 'idle_a_jimmy', dictionary = 'timetable@jimmy@mics3_ig_15@', flag = AnimationFlags.ANIM_FLAG_REPEAT },
-    lean = { name = 'idle_a', dictionary = 'amb@world_human_leaning@male@wall@back@foot_up@idle_a', flag = AnimationFlags.ANIM_FLAG_REPEAT },
-}
-
 local SitScenarios = {
     PROP_HUMAN_SEAT_BENCH = 'PROP_HUMAN_SEAT_BENCH',
     PROP_HUMAN_SEAT_CHAIR = 'PROP_HUMAN_SEAT_CHAIR',
@@ -32,7 +19,7 @@ local HeightLevels = {
     Max = 0.4,
 }
 
-local ForwardDistance = 0.7
+local ForwardDistance = 0.65
 
 --- ============================
 ---          Functions
@@ -48,51 +35,34 @@ function GetEntInFrontOfPlayer(Ped)
         if heightIndex == HeightLevels.Max then
             local CoA = GetEntityCoords(Ped, true)
             RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoA.x, CoA.y, CoB.z,
-                CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
+                CoB.x, CoB.y, CoB.z, 4, Ped, 0) -- 4 = IntersectPedsSimpleCollision
         else
             RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + 0.1,
-                CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
+                CoB.x, CoB.y, CoB.z, 4, Ped, 0) -- 4 = IntersectPedsSimpleCollision
         end
 
-        local _, hit, endCoords, surfaceNormal, materialHash, entityHit =
+        local _, hit, endCoords, surfaceNormal, _, entityHit =
             GetShapeTestResultIncludingMaterial(RayHandle)
 
-        -- Ignore water
-        if hit == 1 and materialHash ~= MaterialHash.Water then
-            -- Ignore bushes without collision
-            -- if materialHash ~= MaterialHash.Bushes or heightIndex >= -0.4 then
-            --     return heightIndex, hit, endCoords, surfaceNormal, materialHash, entityHit
-            -- end
+        -- while true do
+        --     DrawLine(CoB.x, CoB.y, CoB.z + 0.1, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
+        --         color.a)
+        --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
+        --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
+        --     if IsControlJustReleased(0, 38) then
+        --         break
+        --     end
+        --     Wait(0)
+        -- end
 
-            return heightIndex, hit, endCoords, surfaceNormal, materialHash, entityHit
+        if hit == 1 then
+            return heightIndex, hit, endCoords, surfaceNormal, _, entityHit
         end
 
         heightIndex = heightIndex - 0.1
 
         Wait(1)
     end
-
-    -- while true do
-    --     local heightIndex = -0.7
-    --     local CoA = GetEntityCoords(Ped, true)
-    --     local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, ForwardDistance, heightIndex)
-    --     local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + 0.1,
-    --         CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
-    --     local shapeTestHandle, hit, endCoords, surfaceNormal, materialHash, entityHit =
-    --         GetShapeTestResultIncludingMaterial(RayHandle)
-
-    --     DrawLine(CoB.x, CoB.y, CoB.z + 0.1, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
-    --         color.a)
-    --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
-    --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
-
-    --     if IsControlJustReleased(0, 38) then
-    --         print(hit)
-    --         return heightIndex, hit, endCoords, surfaceNormal, materialHash, entityHit
-    --     end
-
-    --     Wait(1)
-    -- end
 end
 
 function GetDistanceFromEdge(Ped)
@@ -104,17 +74,24 @@ function GetDistanceFromEdge(Ped)
     while floorDistance >= 0.0 do
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, floorDistance, HeightLevels.Min)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + zOffSet,
-            CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- -1 = Everything
+            CoB.x, CoB.y, CoB.z, 4, Ped, 0) -- 4 = IntersectPedsSimpleCollision
 
-        local _, hit, endCoords, _, materialHash, _ = GetShapeTestResultIncludingMaterial(RayHandle)
+        local _, hit, endCoords, _, _, _ = GetShapeTestResultIncludingMaterial(RayHandle)
 
-        -- Ignore water
+        -- while true do
+        --     DrawLine(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
+        --         color.a)
+        --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
+        --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
+        --     if IsControlJustReleased(0, 38) then
+        --         break
+        --     end
+        --     Wait(0)
+        -- end
+
         if hit == 1 then
             floorCoords = endCoords
-
-            if materialHash ~= MaterialHash.Water then
-                return floorDistance, floorCoords
-            end
+            return floorDistance, floorCoords
         end
         floorDistance = floorDistance - 0.02
 
@@ -124,33 +101,10 @@ function GetDistanceFromEdge(Ped)
     return 0.0, floorCoords
 end
 
-function requestAnimation(dictionary)
-    RequestAnimDict(dictionary)
-    repeat
-        Wait(100)
-    until HasAnimDictLoaded(dictionary)
-
-    return true
-end
-
-function loadSitAnimations()
-    for _, value in pairs(SitAnimations) do
-        if not HasAnimDictLoaded(value.dictionary) then
-            requestAnimation(value.dictionary)
-        end
-    end
-end
-
-function unloadSitAnimations()
-    for _, value in pairs(SitAnimations) do
-        RemoveAnimDict(value.dictionary)
-    end
-end
-
 function loadModel(modelHash)
     RequestModel(modelHash)
     repeat
-        Wait(100)
+        Wait(1)
     until HasModelLoaded(modelHash)
 end
 
@@ -173,20 +127,14 @@ RegisterCommand('sit', function()
             FreezeEntityPosition(playerPed, false)
         end
 
-        -- Unload all sit animations
-        unloadSitAnimations()
-
         -- Reset isSitting property
         isSitting = false
 
         return
     end
 
-    -- Load all sit animations
-    loadSitAnimations()
-
     -- Get if there's object in front of the ped
-    local heightIndex, hit, endCoords, surfaceNormal, materialHash, entityHit = GetEntInFrontOfPlayer(playerPed)
+    local heightIndex, _, endCoords, surfaceNormal, _, entityHit = GetEntInFrontOfPlayer(playerPed)
 
     -- Get the current heading so the ped will turn around when sitting
     local heading = GetEntityHeading(playerPed)
@@ -207,8 +155,7 @@ RegisterCommand('sit', function()
 
         if floorCoords ~= nil and floorDistance >= -0.01 and floorDistance <= 0.01 then
             -- No floor coords and floor distance at 0 means likely on water, just sit on floor
-            TaskPlayAnim(playerPed, SitAnimations.floor.dictionary, SitAnimations.floor.name,
-                8.0, 8.0, -1, SitAnimations.floor.flag, 0.0, false, false, false)
+            TaskStartScenarioInPlace(playerPed, SitScenarios.WORLD_HUMAN_PICNIC, 0, false)
         else
             if floorCoords == nil then
                 z = forwardCoords.z - 1.0312
