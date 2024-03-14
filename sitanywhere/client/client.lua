@@ -91,7 +91,7 @@ function GetDistanceFromEdge(Ped)
 
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, floorDistance, HeightLevels.Min)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + zOffSet,
-            CoB.x, CoB.y, CoB.z, traceFlag, Ped, 0) -- 4 = IntersectPedsSimpleCollision
+            CoB.x, CoB.y, CoB.z, traceFlag, Ped, 0)
 
         local _, hit, endCoords, _, materialHash, _ = GetShapeTestResultIncludingMaterial(RayHandle)
 
@@ -111,10 +111,11 @@ function GetDistanceFromEdge(Ped)
                 floorCoords = endCoords
                 return floorDistance, floorCoords
             end
-            floorDistance = floorDistance - 0.02
         else
             waterDetected = true
         end
+
+        floorDistance = floorDistance - 0.02
 
         Wait(1)
     end
