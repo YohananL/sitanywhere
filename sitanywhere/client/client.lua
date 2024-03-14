@@ -74,15 +74,26 @@ end
 function GetDistanceFromEdge(Ped)
     color = { r = 0, g = 255, b = 0, a = 200 }
 
+    local Everything = -1
+    local IntersectPedsSimpleCollision = 4
+
     local floorDistance = ForwardDistance
     local zOffSet = 1.0
     local floorCoords = nil
+    local waterDetected = false
     while floorDistance >= 0.0 do
+        local traceFlag
+        if waterDetected then
+            traceFlag = IntersectPedsSimpleCollision
+        else
+            traceFlag = Everything
+        end
+
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, floorDistance, HeightLevels.Min)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + zOffSet,
-            CoB.x, CoB.y, CoB.z, 4, Ped, 0) -- 4 = IntersectPedsSimpleCollision
+            CoB.x, CoB.y, CoB.z, traceFlag, Ped, 0) -- 4 = IntersectPedsSimpleCollision
 
-        local _, hit, endCoords, _, _ = GetShapeTestResult(RayHandle)
+        local _, hit, endCoords, _, materialHash, _ = GetShapeTestResultIncludingMaterial(RayHandle)
 
         -- while true do
         --     DrawLine(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
@@ -95,11 +106,15 @@ function GetDistanceFromEdge(Ped)
         --     Wait(0)
         -- end
 
-        if hit == 1 then
-            floorCoords = endCoords
-            return floorDistance, floorCoords
+        if materialHash ~= MaterialHash.Water then
+            if hit == 1 then
+                floorCoords = endCoords
+                return floorDistance, floorCoords
+            end
+            floorDistance = floorDistance - 0.02
+        else
+            waterDetected = true
         end
-        floorDistance = floorDistance - 0.02
 
         Wait(1)
     end
