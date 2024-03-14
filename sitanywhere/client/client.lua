@@ -35,13 +35,13 @@ function GetEntInFrontOfPlayer(Ped)
         if heightIndex == HeightLevels.Max then
             local CoA = GetEntityCoords(Ped, true)
             RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoA.x, CoA.y, CoB.z,
-                CoB.x, CoB.y, CoB.z, 4, Ped, 0) -- 4 = IntersectPedsSimpleCollision
+                CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- 1 = Everything
         else
             RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + 0.1,
-                CoB.x, CoB.y, CoB.z, 4, Ped, 0) -- 4 = IntersectPedsSimpleCollision
+                CoB.x, CoB.y, CoB.z, -1, Ped, 0) -- 1 = Everything
         end
 
-        local _, hit, endCoords, surfaceNormal, _, entityHit =
+        local _, hit, endCoords, surfaceNormal, materialHash, entityHit =
             GetShapeTestResultIncludingMaterial(RayHandle)
 
         -- while true do
@@ -55,7 +55,13 @@ function GetEntInFrontOfPlayer(Ped)
         --     Wait(0)
         -- end
 
-        if hit == 1 then
+        -- Ignore water
+        if hit == 1 and materialHash ~= MaterialHash.Water then
+            -- Ignore bushes without collision
+            -- if materialHash ~= MaterialHash.Bushes or heightIndex >= -0.4 then
+            --     return heightIndex, hit, endCoords, surfaceNormal, materialHash, entityHit
+            -- end
+
             return heightIndex, hit, endCoords, surfaceNormal, _, entityHit
         end
 
