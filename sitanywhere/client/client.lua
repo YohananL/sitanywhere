@@ -76,7 +76,7 @@ function GetDistanceFromEdge(Ped)
         local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + zOffSet,
             CoB.x, CoB.y, CoB.z, 4, Ped, 0) -- 4 = IntersectPedsSimpleCollision
 
-        local _, hit, endCoords, _, _, _ = GetShapeTestResultIncludingMaterial(RayHandle)
+        local _, hit, endCoords, _, _ = GetShapeTestResult(RayHandle)
 
         -- while true do
         --     DrawLine(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
