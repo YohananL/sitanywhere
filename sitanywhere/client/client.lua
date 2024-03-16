@@ -36,11 +36,9 @@ function GetEntInFrontOfPlayer(Ped)
         local RayHandle
         if heightIndex == HeightLevels.Max then
             local CoA = GetEntityCoords(Ped, true)
-            RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoA.x, CoA.y, CoB.z,
-                CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
+            RayHandle = StartShapeTestRay(CoA.x, CoA.y, CoB.z, CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
         else
-            RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + 0.1,
-                CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
+            RayHandle = StartShapeTestRay(CoB.x, CoB.y, CoB.z + 0.1, CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
         end
 
         local _, hit, endCoords, surfaceNormal, entityHit = GetShapeTestResult(RayHandle)
@@ -71,13 +69,11 @@ function GetDistanceFromEdge(Ped)
 
     local floorDistance = ForwardDistance
     local zOffSet = 1.0
-    local floorCoords = nil
     while floorDistance >= 0.0 do
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, floorDistance, HeightLevels.Min)
-        local RayHandle = StartExpensiveSynchronousShapeTestLosProbe(CoB.x, CoB.y, CoB.z + zOffSet,
-            CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
+        local RayHandle = StartShapeTestRay(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
 
-        local _, hit, endCoords, _, _, _ = GetShapeTestResult(RayHandle)
+        local _, hit, _, _, _, _ = GetShapeTestResult(RayHandle)
 
         -- while true do
         --     DrawLine(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
@@ -91,7 +87,7 @@ function GetDistanceFromEdge(Ped)
         -- end
 
         if hit == 1 then
-            return floorDistance, endCoords
+            return floorDistance
         end
 
         floorDistance = floorDistance - 0.02
@@ -99,7 +95,41 @@ function GetDistanceFromEdge(Ped)
         Wait(1)
     end
 
-    return 0.0, floorCoords
+    return 0.0
+end
+
+function GetDistanceFromSteps(Ped)
+    color = { r = 0, g = 255, b = 0, a = 200 }
+
+    local stepDistance = 0.2
+    local zOffSet = 0.3
+    while stepDistance < ForwardDistance do
+        local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, stepDistance, HeightLevels.Ground)
+        local RayHandle = StartShapeTestRay(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
+
+        local _, hit, _, _, _, _ = GetShapeTestResult(RayHandle)
+
+        -- while true do
+        --     DrawLine(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
+        --         color.a)
+        --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
+        --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
+        --     if IsControlJustReleased(0, 38) then
+        --         break
+        --     end
+        --     Wait(0)
+        -- end
+
+        if hit == 1 then
+            return stepDistance, _
+        end
+
+        stepDistance = stepDistance + 0.05
+
+        Wait(1)
+    end
+
+    return 0.0
 end
 
 function loadModel(modelHash)
@@ -114,8 +144,8 @@ end
 --- ============================
 
 local isSitting = false
-
-RegisterCommand('sit', function()
+RegisterKeyMapping('+sit', 'Sit', 'keyboard', Config.Settings.sitKeyBind)
+RegisterCommand('+sit', function()
     local playerPed = PlayerPedId()
 
     -- Check if already sitting, then cancel the animation
@@ -135,7 +165,7 @@ RegisterCommand('sit', function()
     end
 
     -- Get if there's object in front of the ped
-    local heightIndex, _, endCoords, surfaceNormal, _, entityHit = GetEntInFrontOfPlayer(playerPed)
+    local heightIndex, _, endCoords, _, _, _ = GetEntInFrontOfPlayer(playerPed)
 
     -- Get the current heading so the ped will turn around when sitting
     local heading = GetEntityHeading(playerPed)
@@ -143,40 +173,31 @@ RegisterCommand('sit', function()
     -- No ground in front
     if heightIndex == nil then
         -- Get the distance of the ped from the edge of the floor
-        local floorDistance, floorCoords = GetDistanceFromEdge(playerPed)
-        print(string.format('floorDistance: %2f', floorDistance))
-
+        local floorDistance = GetDistanceFromEdge(playerPed)
         local forwardMultiplier = -0.25 + floorDistance * 1
-        print('forwardMultiplier: ' .. tostring(forwardMultiplier))
 
         -- Move the ped forward based on the distance from the edge
         local playerCoords = GetEntityCoords(playerPed)
         local forwardCoords = playerCoords + GetEntityForwardVector(playerPed) * forwardMultiplier
-        local z
+        local z = forwardCoords.z - 1.0312
 
-        if floorCoords ~= nil and floorDistance >= -0.01 and floorDistance <= 0.01 then
-            -- No floor coords and floor distance at 0 means likely on water, just sit on floor
-            TaskStartScenarioInPlace(playerPed, SitScenarios.WORLD_HUMAN_PICNIC, 0, false)
-        else
-            if floorCoords == nil then
-                z = forwardCoords.z - 1.0312
-            else
-                z = floorCoords.z - 0.0312
-            end
+        -- Sit from ledge
+        TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_LEDGE,
+            forwardCoords.x, forwardCoords.y, z, heading, 0, false, true)
 
-            -- Sit from ledge
-            TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_LEDGE,
-                forwardCoords.x, forwardCoords.y, z, heading, 0, false, true)
-
-            -- Freeze so ped doesn't fall
-            FreezeEntityPosition(playerPed, true)
-        end
+        -- Freeze so ped doesn't fall
+        FreezeEntityPosition(playerPed, true)
     elseif heightIndex <= HeightLevels.Steps and heightIndex > HeightLevels.Ground then
         -- Make ped sit in the opposite direction
         heading = heading + 180
-        local forwardCoords = endCoords - GetEntityForwardVector(playerPed) * 0.4
+
+        -- Move the ped forward based on the distance from the steps
+        local stepDistance = GetDistanceFromSteps(playerPed)
+        local forwardMultiplier = 0.60 - stepDistance * 1
+        local forwardCoords = endCoords - GetEntityForwardVector(playerPed) * forwardMultiplier
+
         TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_STEPS,
-            forwardCoords.x, forwardCoords.y, forwardCoords.z + 0.005, heading, 0, false, true)
+            forwardCoords.x, forwardCoords.y, endCoords.z + 0.005, heading, 0, false, true)
     elseif heightIndex <= HeightLevels.Ground then
         -- At ground, sit on floor
         TaskStartScenarioInPlace(playerPed, SitScenarios.WORLD_HUMAN_PICNIC, 0, false)
