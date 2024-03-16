@@ -197,7 +197,7 @@ RegisterCommand('+sit', function()
         local forwardCoords = endCoords - GetEntityForwardVector(playerPed) * forwardMultiplier
 
         TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_STEPS,
-            forwardCoords.x, forwardCoords.y, endCoords.z + 0.005, heading, 0, false, true)
+            forwardCoords.x, forwardCoords.y, endCoords.z + 0.009, heading, 0, false, true)
     elseif heightIndex <= HeightLevels.Ground then
         -- At ground, sit on floor
         TaskStartScenarioInPlace(playerPed, SitScenarios.WORLD_HUMAN_PICNIC, 0, false)

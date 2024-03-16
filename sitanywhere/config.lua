@@ -1,5 +1,5 @@
 Config = {}
 
 Config.Settings = {
-    sitKeyBind = 'j',
+    sitKeyBind = 'NUMPADEQUALS',
 }
