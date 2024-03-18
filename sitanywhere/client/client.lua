@@ -19,7 +19,7 @@ local HeightLevels = {
     Max = 0.4,
 }
 
-local ForwardDistance = 0.65
+local ForwardDistance = 0.60
 
 local TraceFlag = 1 | 2 | 4 | 16 -- World | Vehicles | PedSimpleCollision | Objects
 
@@ -98,10 +98,44 @@ function GetDistanceFromEdge(Ped)
     return 0.0
 end
 
+function GetDistanceFromSeat(Ped)
+    color = { r = 0, g = 255, b = 0, a = 200 }
+
+    local seatDistance = 0.25
+    local zOffSet = 1.2
+    while seatDistance < ForwardDistance do
+        local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, seatDistance, HeightLevels.Ground)
+        local RayHandle = StartShapeTestRay(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
+
+        local _, hit, _, _, _, _ = GetShapeTestResult(RayHandle)
+
+        -- while true do
+        --     DrawLine(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
+        --         color.a)
+        --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
+        --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
+        --     if IsControlJustReleased(0, 38) then
+        --         break
+        --     end
+        --     Wait(0)
+        -- end
+
+        if hit == 1 then
+            return seatDistance, _
+        end
+
+        seatDistance = seatDistance + 0.05
+
+        Wait(1)
+    end
+
+    return 0.0
+end
+
 function GetDistanceFromSteps(Ped)
     color = { r = 0, g = 255, b = 0, a = 200 }
 
-    local stepDistance = 0.2
+    local stepDistance = 0.25
     local zOffSet = 0.3
     while stepDistance < ForwardDistance do
         local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, stepDistance, HeightLevels.Ground)
@@ -193,23 +227,33 @@ RegisterCommand('+sit', function()
 
         -- Move the ped forward based on the distance from the steps
         local stepDistance = GetDistanceFromSteps(playerPed)
-        local forwardMultiplier = 0.60 - stepDistance * 1
+        local forwardMultiplier = ForwardDistance - stepDistance * 1.0
         local forwardCoords = endCoords - GetEntityForwardVector(playerPed) * forwardMultiplier
 
         TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_STEPS,
-            forwardCoords.x, forwardCoords.y, endCoords.z + 0.009, heading, 0, false, true)
+            forwardCoords.x, forwardCoords.y, endCoords.z + 0.01, heading, 0, false, true)
     elseif heightIndex <= HeightLevels.Ground then
         -- At ground, sit on floor
         TaskStartScenarioInPlace(playerPed, SitScenarios.WORLD_HUMAN_PICNIC, 0, false)
     elseif heightIndex == HeightLevels.Max then
         -- Too high, lean
-        SetEntityHeading(playerPed, heading + 180)
-        TaskStartScenarioInPlace(playerPed, SitScenarios.WORLD_HUMAN_LEANING, 0, false)
+        heading = heading + 180
+
+        local playerCoords = GetEntityCoords(playerPed)
+        local forwardCoords = endCoords - GetEntityForwardVector(playerPed) * 0.3
+
+        TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_LEANING,
+            forwardCoords.x, forwardCoords.y, playerCoords.z, heading, 0, false, true)
     else
         -- Make ped sit in the opposite direction
         heading = heading + 180
+
+        local chairDistance = GetDistanceFromSeat(playerPed)
+        local forwardMultiplier = (ForwardDistance - 0.32) - chairDistance * 1.01
+        local forwardCoords = endCoords - GetEntityForwardVector(playerPed) * forwardMultiplier
+
         TaskStartScenarioAtPosition(playerPed, SitScenarios.PROP_HUMAN_SEAT_BENCH,
-            endCoords.x, endCoords.y, endCoords.z + 0.03, heading, 0, false, true)
+            forwardCoords.x, forwardCoords.y, endCoords.z + 0.03, heading, 0, false, true)
     end
 
     -- Set setting to true
