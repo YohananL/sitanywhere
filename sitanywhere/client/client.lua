@@ -64,59 +64,29 @@ function GetEntInFrontOfPlayer(Ped)
     end
 end
 
-function GetDistanceFromEdge(Ped)
+function GetDistanceFromTarget(Ped, heightIndex, isLedge)
     color = { r = 0, g = 255, b = 0, a = 200 }
 
-    local floorDistance = ForwardDistance
-    local zOffSet = 1.0
-    while floorDistance >= 0.0 do
-        local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, floorDistance, HeightLevels.Min)
-        local RayHandle = StartShapeTestRay(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
-
-        local _, hit, _, _, _, _ = GetShapeTestResult(RayHandle)
-
-        -- while true do
-        --     DrawLine(CoB.x, CoB.y, CoB.z + zOffSet, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
-        --         color.a)
-        --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
-        --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
-        --     if IsControlJustReleased(0, 38) then
-        --         break
-        --     end
-        --     Wait(0)
-        -- end
-
-        if hit == 1 then
-            return floorDistance
-        end
-
-        floorDistance = floorDistance - 0.02
-
-        Wait(1)
-    end
-
-    return 0.0
-end
-
-function GetDistanceFromTarget(Ped, heightIndex)
-    color = { r = 0, g = 255, b = 0, a = 200 }
-
-    local CoA = GetEntityCoords(Ped, true)
+    local CoA = GetOffsetFromEntityInWorldCoords(Ped, 0.0, -ForwardDistance, heightIndex)
     local CoB = GetOffsetFromEntityInWorldCoords(Ped, 0.0, ForwardDistance, heightIndex)
-    local RayHandle = StartShapeTestRay(CoA.x, CoA.y, CoB.z, CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
+    if isLedge then
+        RayHandle = StartShapeTestRay(CoB.x, CoB.y, CoB.z, CoA.x, CoA.y, CoB.z, TraceFlag, Ped, 0)
+    else
+        RayHandle = StartShapeTestRay(CoA.x, CoA.y, CoB.z, CoB.x, CoB.y, CoB.z, TraceFlag, Ped, 0)
+    end
 
     local _, _, endCoords, _, _ = GetShapeTestResult(RayHandle)
 
-    while true do
-        DrawLine(CoA.x, CoA.y, CoB.z, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
-            color.a)
-        DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
-            color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
-        if IsControlJustReleased(0, 38) then
-            break
-        end
-        Wait(0)
-    end
+    -- while true do
+    --     DrawLine(CoA.x, CoA.y, CoB.z, CoB.x, CoB.y, CoB.z, color.r, color.g, color.b,
+    --         color.a)
+    --     DrawMarker(28, CoB.x, CoB.y, CoB.z, 0.0, 0.0, 0.0, 0.0, 180.0, 0.0, 0.1, 0.1, 0.1, color.r,
+    --         color.g, color.b, color.a, false, true, 2, nil, nil, false, false)
+    --     if IsControlJustReleased(0, 38) then
+    --         break
+    --     end
+    --     Wait(0)
+    -- end
 
     return endCoords
 end
@@ -133,6 +103,8 @@ end
 --- ============================
 
 local isSitting = false
+local shouldResetCoords = false
+
 RegisterKeyMapping('+sit', 'Sit', 'keyboard', Config.Settings.sitKeyBind)
 RegisterCommand('+sit', function()
     local playerPed = PlayerPedId()
@@ -142,6 +114,12 @@ RegisterCommand('+sit', function()
         -- Clear tasks
         ClearPedTasksImmediately(playerPed)
 
+        if shouldResetCoords then
+            local playerCoords = GetEntityCoords(playerPed)
+            SetEntityCoords(playerPed, playerCoords.x, playerCoords.y, playerCoords.z, true, false, false, false)
+            shouldResetCoords = false
+        end
+
         -- Unfreeze if frozen
         if IsEntityPositionFrozen(playerPed) then
             FreezeEntityPosition(playerPed, false)
@@ -149,7 +127,6 @@ RegisterCommand('+sit', function()
 
         -- Reset isSitting property
         isSitting = false
-
         return
     end
 
@@ -161,25 +138,20 @@ RegisterCommand('+sit', function()
 
     -- No ground in front
     if heightIndex == nil then
-        -- Get the distance of the ped from the edge of the floor
-        local floorDistance = GetDistanceFromEdge(playerPed)
-        local forwardMultiplier = -0.25 + floorDistance * 1
-
-        -- Move the ped forward based on the distance from the edge
-        local playerCoords = GetEntityCoords(playerPed)
-        local forwardCoords = playerCoords + GetEntityForwardVector(playerPed) * forwardMultiplier
-        local z = forwardCoords.z - 1.0312
-
         -- Sit from ledge
+        local playerCoords = GetEntityCoords(playerPed)
+        local ledgeCoords = GetDistanceFromTarget(playerPed, -1.02, true)
+        local forwardCoords = ledgeCoords - GetEntityForwardVector(playerPed) * 0.30
         TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_LEDGE,
-            forwardCoords.x, forwardCoords.y, z, heading, 0, false, true)
+            forwardCoords.x, forwardCoords.y, playerCoords.z - 1.0312, heading, 0, false, true)
 
         -- Freeze so ped doesn't fall
         FreezeEntityPosition(playerPed, true)
+        shouldResetCoords = true
     elseif heightIndex <= HeightLevels.Steps and heightIndex > HeightLevels.Ground then
         -- Sit on steps
         heading = heading + 180
-        local targetCoords = GetDistanceFromTarget(playerPed, heightIndex)
+        local targetCoords = GetDistanceFromTarget(playerPed, heightIndex, false)
         local forwardCoords = targetCoords + GetEntityForwardVector(playerPed) * 0.05
         TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_STEPS,
             forwardCoords.x, forwardCoords.y, endCoords.z + 0.01, heading, 0, false, true)
@@ -196,10 +168,12 @@ RegisterCommand('+sit', function()
     else
         -- Sit in chair
         heading = heading + 180
-        local targetCoords = GetDistanceFromTarget(playerPed, heightIndex)
+        local targetCoords = GetDistanceFromTarget(playerPed, heightIndex, false)
         local forwardCoords = targetCoords + GetEntityForwardVector(playerPed) * 0.35
         TaskStartScenarioAtPosition(playerPed, SitScenarios.PROP_HUMAN_SEAT_BENCH,
             forwardCoords.x, forwardCoords.y, endCoords.z + 0.03, heading, 0, false, true)
+
+        shouldResetCoords = true
     end
 
     -- Set setting to true
