@@ -116,7 +116,7 @@ RegisterCommand('+sit', function()
 
         if shouldResetCoords then
             local playerCoords = GetEntityCoords(playerPed)
-            SetEntityCoords(playerPed, playerCoords.x, playerCoords.y, playerCoords.z, true, false, false, false)
+            SetEntityCoords(playerPed, playerCoords.x, playerCoords.y, playerCoords.z + 0.1, true, false, false, false)
             shouldResetCoords = false
         end
 
@@ -139,11 +139,12 @@ RegisterCommand('+sit', function()
     -- No ground in front
     if heightIndex == nil then
         -- Sit from ledge
-        local playerCoords = GetEntityCoords(playerPed)
+        local _, _, z = table.unpack(GetEntityCoords(playerPed))
+        local zOffset = 1.0312
         local ledgeCoords = GetDistanceFromTarget(playerPed, -1.02, true)
         local forwardCoords = ledgeCoords - GetEntityForwardVector(playerPed) * 0.30
         TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_LEDGE,
-            forwardCoords.x, forwardCoords.y, playerCoords.z - 1.0312, heading, 0, false, true)
+            forwardCoords.x, forwardCoords.y, z - zOffset, heading, 0, false, true)
 
         -- Freeze so ped doesn't fall
         FreezeEntityPosition(playerPed, true)
