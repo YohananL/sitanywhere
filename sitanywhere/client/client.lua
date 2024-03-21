@@ -140,9 +140,14 @@ RegisterCommand('+sit', function()
     if heightIndex == nil then
         -- Sit from ledge
         local _, _, z = table.unpack(GetEntityCoords(playerPed))
-        local zOffset = 1.0312
+        local zOffset = 1.025
         local ledgeCoords = GetDistanceFromTarget(playerPed, -1.02, true)
-        local forwardCoords = ledgeCoords - GetEntityForwardVector(playerPed) * 0.30
+        local forwardCoords
+        if ledgeCoords.x == 0.0 and ledgeCoords.y == 0.0 and ledgeCoords.z == 0.0 then
+            forwardCoords = GetEntityCoords(playerPed)
+        else
+            forwardCoords = ledgeCoords - GetEntityForwardVector(playerPed) * 0.30
+        end
         TaskStartScenarioAtPosition(playerPed, SitScenarios.WORLD_HUMAN_SEAT_LEDGE,
             forwardCoords.x, forwardCoords.y, z - zOffset, heading, 0, false, true)
 
